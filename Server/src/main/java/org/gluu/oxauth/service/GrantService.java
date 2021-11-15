@@ -110,6 +110,7 @@ public class GrantService {
     }
 
     public void persist(TokenLdap token) {
+        log.info("entering persist Token. dn: {}", token.getDn());
         if (shouldPutInCache(token.getTokenTypeEnum(), token.isImplicitFlow())) {
             ClientTokens clientTokens = getCacheClientTokens(token.getClientId());
             clientTokens.getTokenHashes().add(token.getTokenCode());
@@ -149,7 +150,7 @@ public class GrantService {
             }
             return;
         }
-
+        log.info("persisting token: {}" , token.getDn());
         ldapEntryManager.persist(token);
     }
 

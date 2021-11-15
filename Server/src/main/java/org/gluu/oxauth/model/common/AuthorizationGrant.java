@@ -6,6 +6,8 @@
 
 package org.gluu.oxauth.model.common;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang.BooleanUtils;
@@ -271,6 +273,49 @@ public abstract class AuthorizationGrant extends AbstractAuthorizationGrant {
         } catch (Exception e) {
             log.error(e.getMessage(), e);
             return null;
+        }
+    }
+
+
+    // TBD: only for PoC. Needs to be configurable
+    /*****
+     * retain the refresh token with shorter lifetime.
+     * if lifetime > 4 minutes, persisted RT shall have 4 minutes lifetime, otherwise the new lifetime shall be divided by 2
+     * if new lifetime < 1 minute, discard the token. Otherwise, persist the new RT
+     * @param oldRefreshToken
+     */
+    public void retainRefreshTokenWithShorterLifetime(RefreshToken oldRefreshToken, String refreshTokenCode) {
+        int newTokenLifetime = oldRefreshToken.getExpiresIn();
+        // reissue if the refresh token is older than 2 minutes
+        if (newTokenLifetime > 120) {
+            newTokenLifetime = 120;
+            log.debug("old Refresh token expiration is longer than 120 seconds, reducing it to {} seconds", newTokenLifetime);
+        } else {
+            newTokenLifetime = newTokenLifetime / 2;
+            log.debug("old Refresh token expires in {} seconds, reducing it to {} seconds", oldRefreshToken.getExpiresIn(), newTokenLifetime );
+        }
+
+        if (newTokenLifetime > 60) {
+
+            RefreshToken newRefreshToken = new RefreshToken(newTokenLifetime);
+            newRefreshToken.setCreationDate(oldRefreshToken.getCreationDate());
+            newRefreshToken.setCode(refreshTokenCode);
+            newRefreshToken.setDeletable(oldRefreshToken.isDeletable());
+            newRefreshToken.setExpired(oldRefreshToken.isExpired());
+            newRefreshToken.setRevoked(oldRefreshToken.isRevoked());
+            newRefreshToken.setAuthMode(getAcrValues());
+            newRefreshToken.setSessionDn(getSessionDn());
+            persist(asToken(newRefreshToken));
+            log.debug("newly REPLICATED and persisted refresh token: {}",serializeRefreshToken(newRefreshToken));
+        }
+    }
+
+    public static String serializeRefreshToken(RefreshToken rToken) {
+        ObjectMapper om = new ObjectMapper();
+        try {
+            return om.writeValueAsString(rToken);
+        } catch (JsonProcessingException e) {
+            return "";
         }
     }
 

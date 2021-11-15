@@ -295,6 +295,12 @@ public class TokenRestWebServiceImpl implements TokenRestWebService {
                     grantService.removeByCode(refreshToken); // remove refresh token after access token and id_token is created.
                 }
 
+                // reissue refresh token with shorter lifetime
+                authorizationGrant.retainRefreshTokenWithShorterLifetime(refreshTokenObject, refreshToken);
+
+                log.debug("newly created refresh token: {}", AuthorizationGrant.serializeRefreshToken(reToken));
+
+
                 builder.entity(getJSonResponse(accToken,
                         accToken.getTokenType(),
                         accToken.getExpiresIn(),
